@@ -1,0 +1,98 @@
+# Contributor: Cristian Falcone <cristianfalcone@gmail.com>
+# Maintainer: Cristian Falcone <cristianfalcone@gmail.com>
+pkgname=bun
+pkgver=1.3.6
+pkgrel=0
+pkgdesc="Incredibly fast JavaScript runtime, bundler, test runner and package manager"
+url="https://bun.sh"
+arch="x86_64 aarch64"
+license="MIT"
+depends="libstdc++ libgcc"
+makedepends="
+	bun-bootstrap
+	build-base cmake ninja git curl unzip xz
+	llvm19 llvm19-dev clang19 clang19-dev lld
+	go rust cargo ruby python3 perl
+	musl-dev linux-headers libstdc++-dev libc-dev
+	gcc bash file binutils
+"
+subpackages="$pkgname-static"
+source="https://github.com/oven-sh/bun/archive/refs/tags/bun-v$pkgver.tar.gz"
+options="!check net"
+builddir="$srcdir/bun-bun-v$pkgver"
+provides="bun-bootstrap=$pkgver-r$pkgrel"
+
+prepare() {
+	default_prepare
+
+	# Initialize git repo for version detection
+	# CMake uses git rev-parse HEAD to get UWS/USOCKETS versions
+	cd "$builddir"
+	git init -q
+	git config user.email "builder@alpine"
+	git config user.name "Alpine Builder"
+	git add -A
+	git commit -q -m "bun-v$pkgver"
+	git tag "bun-v$pkgver"
+
+	# Setup LLVM/Clang symlinks
+	mkdir -p "$builddir"/.llvm/bin
+	for tool in clang clang++ llvm-ar llvm-ranlib; do
+		ln -sf /usr/bin/${tool}-19 "$builddir"/.llvm/bin/$tool 2>/dev/null || \
+		ln -sf /usr/bin/$tool "$builddir"/.llvm/bin/$tool
+	done
+	ln -sf /usr/bin/ld.lld "$builddir"/.llvm/bin/ld.lld
+	ln -sf /usr/bin/lld "$builddir"/.llvm/bin/lld
+}
+
+build() {
+	export AR=/usr/bin/ar
+	export RANLIB=/usr/bin/ranlib
+	export PATH="/usr/lib/bun-bootstrap:$builddir/.llvm/bin:$PATH"
+	export LLD=/usr/bin/lld
+	export LD_LLD=/usr/bin/ld.lld
+
+	bun install --frozen-lockfile || bun install
+
+	# Build dynamic (upstream default)
+	bun ./scripts/build.mjs \
+		-DLLD_PROGRAM=/usr/bin/ld.lld \
+		-GNinja \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_AR=/usr/bin/ar \
+		-DCMAKE_RANLIB=/usr/bin/ranlib \
+		-B build/release
+
+	# Modify CMake for static linking
+	sed -i 's/^      -lstdc++$/      -Wl,--allow-multiple-definition\n      -static\n      -Wl,-Bstatic\n      -l:libstdc++.a/' \
+		cmake/targets/BuildBun.cmake
+	sed -i 's/^      -lgcc$/      -l:libgcc.a\n      -l:libgcc_eh.a/' \
+		cmake/targets/BuildBun.cmake
+
+	# Build static
+	bun ./scripts/build.mjs \
+		-DLLD_PROGRAM=/usr/bin/ld.lld \
+		-GNinja \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_AR=/usr/bin/ar \
+		-DCMAKE_RANLIB=/usr/bin/ranlib \
+		-B build/release-static
+}
+
+package() {
+	install -Dm755 "$builddir/build/release/bun" "$pkgdir/usr/bin/bun"
+	ln -s bun "$pkgdir/usr/bin/bunx"
+}
+
+static() {
+	pkgdesc="$pkgdesc (statically linked)"
+	depends=""
+
+	install -Dm755 "$builddir/build/release-static/bun" \
+		"$subpkgdir/usr/bin/bun"
+	ln -s bun "$subpkgdir/usr/bin/bunx"
+}
+
+sha512sums="
+SKIP
+"
