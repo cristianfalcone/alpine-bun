@@ -1,0 +1,7 @@
+# This directory will contain:
+# - *.apk package files
+# - APKINDEX.tar.gz (signed index)
+#
+# Build packages with: abuild -r
+# Generate index with: apk index -o APKINDEX.tar.gz *.apk
+# Sign index with: abuild-sign APKINDEX.tar.gz

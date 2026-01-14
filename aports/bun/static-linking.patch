@@ -1,0 +1,23 @@
+Patch to enable full static linking for musl builds.
+
+This resolves the dynamic linking to libstdc++ and libgcc that the
+upstream musl build uses by default. The --allow-multiple-definition
+flag resolves symbol conflicts between mimalloc and libstdc++.
+
+--- a/cmake/targets/BuildBun.cmake
++++ b/cmake/targets/BuildBun.cmake
+@@ -1114,8 +1114,12 @@ if(NOT ABI STREQUAL "musl")
+     -static-libgcc
+   )
+ else()
+   target_link_options(${bun} PUBLIC
+-    -lstdc++
+-    -lgcc
++    -Wl,--allow-multiple-definition
++    -static
++    -Wl,-Bstatic
++    -l:libstdc++.a
++    -l:libgcc.a
++    -l:libgcc_eh.a
+   )
+ endif()

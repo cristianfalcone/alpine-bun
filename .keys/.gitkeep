@@ -1,0 +1,3 @@
+# This directory will contain the RSA public key for package signing
+# Generate with: abuild-keygen -a -i
+# Then copy: cp ~/.abuild/*.rsa.pub .keys/
