@@ -4,19 +4,19 @@ Unofficial Alpine Linux packages for [Bun](https://bun.sh) - the incredibly fast
 
 ## Packages
 
-| Package | Description | Dependencies |
-|---------|-------------|--------------|
-| `bun-bootstrap` | Bootstrap binary for building Bun from source | none |
-| `bun` | Bun runtime (dynamically linked) | libstdc++, libgcc |
-| `bun-static` | Bun runtime (statically linked) | none |
+| Package | Description | Dependencies | Status |
+|---------|-------------|--------------|--------|
+| `bun-bootstrap` | Bootstrap binary for building Bun from source | libstdc++, libgcc | Available |
+| `bun` | Bun runtime (dynamically linked) | libstdc++, libgcc | Planned |
+| `bun-static` | Bun runtime (statically linked) | none | Planned |
 
 ## Installation
 
 ### 1. Add the signing key
 
 ```bash
-wget -O /etc/apk/keys/cristianfalcone@gmail.com.rsa.pub \
-  https://raw.githubusercontent.com/cristianfalcone/alpine-bun/main/.keys/cristianfalcone@gmail.com.rsa.pub
+wget -O /etc/apk/keys/builder-6967dc21.rsa.pub \
+  https://raw.githubusercontent.com/cristianfalcone/alpine-bun/main/.keys/builder-6967dc21.rsa.pub
 ```
 
 ### 2. Add the repository
@@ -29,12 +29,13 @@ echo "https://raw.githubusercontent.com/cristianfalcone/alpine-bun/main/edge/tes
 ### 3. Install Bun
 
 ```bash
-# Dynamic version (recommended for most uses)
 apk update
-apk add bun
 
-# Or static version (for minimal containers)
-apk add bun-static
+# Currently only bun-bootstrap is available
+apk add bun-bootstrap
+
+# The binary is installed at /usr/lib/bun-bootstrap/bun
+/usr/lib/bun-bootstrap/bun --version
 ```
 
 ## Usage
