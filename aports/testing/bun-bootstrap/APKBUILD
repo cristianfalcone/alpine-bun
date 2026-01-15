@@ -1,4 +1,3 @@
-# Contributor: Cristian Falcone <cristianfalcone@gmail.com>
 # Maintainer: Cristian Falcone <cristianfalcone@gmail.com>
 pkgname=bun-bootstrap
 pkgver=1.3.6
@@ -7,6 +6,7 @@ pkgdesc="Bootstrap binary for building Bun from source"
 url="https://bun.sh"
 arch="x86_64 aarch64"
 license="MIT"
+# no test suite; binary is pre-stripped upstream
 options="!check !strip"
 
 source="

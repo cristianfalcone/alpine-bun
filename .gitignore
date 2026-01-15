@@ -1,0 +1,3 @@
+# Private keys (keep only public keys in repo)
+.keys/*.rsa
+!.keys/*.rsa.pub

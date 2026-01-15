@@ -15,8 +15,8 @@ Unofficial Alpine Linux packages for [Bun](https://bun.sh) - the incredibly fast
 ### 1. Add the signing key
 
 ```bash
-wget -O /etc/apk/keys/builder-6967edfa.rsa.pub \
-  https://raw.githubusercontent.com/cristianfalcone/alpine-bun/main/.keys/builder-6967edfa.rsa.pub
+wget -O /etc/apk/keys/cristianfalcone@gmail.com-799462e3.rsa.pub \
+  https://raw.githubusercontent.com/cristianfalcone/alpine-bun/main/.keys/cristianfalcone@gmail.com-799462e3.rsa.pub
 ```
 
 ### 2. Add the repository
