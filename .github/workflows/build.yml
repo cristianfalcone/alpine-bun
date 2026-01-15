@@ -18,64 +18,68 @@ jobs:
       matrix:
         include:
           - arch: x86_64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
           - arch: aarch64
             runner: ubuntu-24.04-arm
 
     runs-on: ${{ matrix.runner }}
+    container:
+      image: alpine:edge
 
     steps:
+      - name: Install build dependencies
+        run: |
+          apk add --no-cache alpine-sdk
+
       - uses: actions/checkout@v4
 
-      - name: Setup Alpine Linux
-        uses: jirutka/setup-alpine@v1
-        with:
-          branch: edge
-          packages: >
-            alpine-sdk
-            sudo
-
-      - name: Setup abuild
-        shell: alpine.sh {0}
+      - name: Setup build environment
         run: |
-          # Create build user
+          # Create build user and add to abuild group
           adduser -D builder
           addgroup builder abuild
-          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+          # Create and configure distfiles cache
+          mkdir -p /var/cache/distfiles
+          chgrp abuild /var/cache/distfiles
+          chmod g+w /var/cache/distfiles
 
           # Setup signing key from secret
           mkdir -p /home/builder/.abuild
-          echo '${{ secrets.ABUILD_PRIVKEY }}' > /home/builder/.abuild/cristianfalcone@gmail.com-799462e3.rsa
+          echo "${{ secrets.ABUILD_PRIVKEY }}" > /home/builder/.abuild/cristianfalcone@gmail.com-799462e3.rsa
           chmod 600 /home/builder/.abuild/cristianfalcone@gmail.com-799462e3.rsa
-          cat > /home/builder/.abuild/abuild.conf << 'EOF'
-          PACKAGER_PRIVKEY=/home/builder/.abuild/cristianfalcone@gmail.com-799462e3.rsa
-          PACKAGER="Cristian Falcone <cristianfalcone@gmail.com>"
-          EOF
-          chown -R builder:builder /home/builder/.abuild
 
-          # Add public key to system
+          # Configure abuild
+          printf '%s\n' \
+            'PACKAGER="Cristian Falcone <cristianfalcone@gmail.com>"' \
+            'PACKAGER_PRIVKEY="/home/builder/.abuild/cristianfalcone@gmail.com-799462e3.rsa"' \
+            > /home/builder/.abuild/abuild.conf
+
+          # Set ownership
+          chown -R builder:builder /home/builder
+
+          # Add public key to system trust
           cp .keys/cristianfalcone@gmail.com-799462e3.rsa.pub /etc/apk/keys/
 
+          # Give builder ownership of workspace
+          chown -R builder:builder .
+
       - name: Build bun-bootstrap
-        shell: alpine.sh {0}
         run: |
           cd aports/testing/bun-bootstrap
-          chown -R builder:builder .
-          sudo -u builder abuild -r
+          su builder -c "abuild -r"
 
       - name: Build bun
-        shell: alpine.sh {0}
         run: |
           cd aports/testing/bun
-          chown -R builder:builder .
-          sudo -u builder abuild -r
+          su builder -c "abuild -r"
 
       - name: Collect packages
-        shell: alpine.sh {0}
         run: |
           mkdir -p output/${{ matrix.arch }}
           cp /home/builder/packages/testing/${{ matrix.arch }}/*.apk output/${{ matrix.arch }}/
           cp /home/builder/packages/testing/${{ matrix.arch }}/APKINDEX.tar.gz output/${{ matrix.arch }}/
+          ls -la output/${{ matrix.arch }}/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -85,12 +89,10 @@ jobs:
 
   publish:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -100,7 +102,8 @@ jobs:
       - name: Update repository
         run: |
           # Remove old packages
-          rm -rf edge/testing/x86_64/*.apk edge/testing/aarch64/*.apk 2>/dev/null || true
+          rm -f edge/testing/x86_64/*.apk edge/testing/x86_64/APKINDEX.tar.gz 2>/dev/null || true
+          rm -f edge/testing/aarch64/*.apk edge/testing/aarch64/APKINDEX.tar.gz 2>/dev/null || true
 
           # Copy new packages
           mkdir -p edge/testing/x86_64 edge/testing/aarch64
@@ -111,7 +114,7 @@ jobs:
           cp artifacts/packages-aarch64/aarch64/*.apk edge/testing/aarch64/
           cp artifacts/packages-aarch64/aarch64/APKINDEX.tar.gz edge/testing/aarch64/
 
-          # Show what we have
+          # Show results
           echo "=== x86_64 packages ==="
           ls -la edge/testing/x86_64/
           echo "=== aarch64 packages ==="
