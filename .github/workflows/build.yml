@@ -23,63 +23,66 @@ jobs:
             runner: ubuntu-24.04-arm
 
     runs-on: ${{ matrix.runner }}
-    container:
-      image: alpine:edge
 
     steps:
-      - name: Install build dependencies
-        run: |
-          apk add --no-cache alpine-sdk
-
       - uses: actions/checkout@v4
 
-      - name: Setup build environment
+      - name: Build packages in Alpine container
         run: |
-          # Create build user and add to abuild group
-          adduser -D builder
-          addgroup builder abuild
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -e ABUILD_PRIVKEY="${{ secrets.ABUILD_PRIVKEY }}" \
+            alpine:edge sh -c '
+              set -e
 
-          # Create and configure distfiles cache
-          mkdir -p /var/cache/distfiles
-          chgrp abuild /var/cache/distfiles
-          chmod g+w /var/cache/distfiles
+              # Install build dependencies
+              apk add --no-cache alpine-sdk
 
-          # Setup signing key from secret
-          mkdir -p /home/builder/.abuild
-          echo "${{ secrets.ABUILD_PRIVKEY }}" > /home/builder/.abuild/cristianfalcone@gmail.com-799462e3.rsa
-          chmod 600 /home/builder/.abuild/cristianfalcone@gmail.com-799462e3.rsa
+              # Create build user and add to abuild group
+              adduser -D builder
+              addgroup builder abuild
 
-          # Configure abuild
-          printf '%s\n' \
-            'PACKAGER="Cristian Falcone <cristianfalcone@gmail.com>"' \
-            'PACKAGER_PRIVKEY="/home/builder/.abuild/cristianfalcone@gmail.com-799462e3.rsa"' \
-            > /home/builder/.abuild/abuild.conf
+              # Create and configure distfiles cache
+              mkdir -p /var/cache/distfiles
+              chgrp abuild /var/cache/distfiles
+              chmod g+w /var/cache/distfiles
 
-          # Set ownership
-          chown -R builder:builder /home/builder
+              # Setup signing keys (both private and public)
+              mkdir -p /home/builder/.abuild
+              echo "$ABUILD_PRIVKEY" > /home/builder/.abuild/cristianfalcone@gmail.com-799462e3.rsa
+              chmod 600 /home/builder/.abuild/cristianfalcone@gmail.com-799462e3.rsa
+              cp /workspace/.keys/cristianfalcone@gmail.com-799462e3.rsa.pub /home/builder/.abuild/
 
-          # Add public key to system trust
-          cp .keys/cristianfalcone@gmail.com-799462e3.rsa.pub /etc/apk/keys/
+              # Configure abuild
+              printf "%s\n" \
+                "PACKAGER=\"Cristian Falcone <cristianfalcone@gmail.com>\"" \
+                "PACKAGER_PRIVKEY=\"/home/builder/.abuild/cristianfalcone@gmail.com-799462e3.rsa\"" \
+                > /home/builder/.abuild/abuild.conf
 
-          # Give builder ownership of workspace
-          chown -R builder:builder .
+              # Set ownership
+              chown -R builder:builder /home/builder
 
-      - name: Build bun-bootstrap
-        run: |
-          cd aports/testing/bun-bootstrap
-          su builder -c "abuild -r"
+              # Add public key to system trust
+              cp /workspace/.keys/cristianfalcone@gmail.com-799462e3.rsa.pub /etc/apk/keys/
 
-      - name: Build bun
-        run: |
-          cd aports/testing/bun
-          su builder -c "abuild -r"
+              # Give builder ownership of workspace
+              chown -R builder:builder /workspace
 
-      - name: Collect packages
-        run: |
-          mkdir -p output/${{ matrix.arch }}
-          cp /home/builder/packages/testing/${{ matrix.arch }}/*.apk output/${{ matrix.arch }}/
-          cp /home/builder/packages/testing/${{ matrix.arch }}/APKINDEX.tar.gz output/${{ matrix.arch }}/
-          ls -la output/${{ matrix.arch }}/
+              # Build bun-bootstrap
+              cd /workspace/aports/testing/bun-bootstrap
+              su builder -c "abuild -r"
+
+              # Build bun
+              cd /workspace/aports/testing/bun
+              su builder -c "abuild -r"
+
+              # Collect packages to output directory
+              mkdir -p /workspace/output
+              cp -r /home/builder/packages/testing/* /workspace/output/
+            '
+
+      - name: List built packages
+        run: ls -la output/${{ matrix.arch }}/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
