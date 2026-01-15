@@ -2,6 +2,11 @@
 
 Unofficial Alpine Linux packages for [Bun](https://bun.sh) - the incredibly fast JavaScript runtime, bundler, test runner, and package manager.
 
+## Supported Architectures
+
+- `x86_64` (Intel/AMD 64-bit)
+- `aarch64` (ARM 64-bit)
+
 ## Packages
 
 | Package | Description | Dependencies | Size |
