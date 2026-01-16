@@ -25,6 +25,28 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
+      - name: Free disk space
+        run: |
+          echo "=== Disk space before cleanup ==="
+          df -h /
+          # Remove pre-installed tools we don't need
+          # Android SDK: 9.5 GB (x64 only)
+          sudo rm -rf /usr/local/lib/android || true
+          # Haskell/GHCup: 6.4 GB (x64 only)
+          sudo rm -rf /usr/local/.ghcup || true
+          # Hosted tool cache: 6 GB (x64 only)
+          sudo rm -rf /opt/hostedtoolcache || true
+          # .NET SDK: 3.4 GB
+          sudo rm -rf /usr/share/dotnet || true
+          # Swift: 3.2 GB
+          sudo rm -rf /usr/share/swift || true
+          # PowerShell: 1.3 GB (arm64 only)
+          sudo rm -rf /usr/local/share/powershell || true
+          # Clean Docker cache
+          sudo docker system prune -af || true
+          echo "=== Disk space after cleanup ==="
+          df -h /
+
       - uses: actions/checkout@v4
 
       - name: Build packages in Alpine container
