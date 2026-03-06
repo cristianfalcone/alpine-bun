@@ -1,6 +1,6 @@
 # Maintainer: Cristian Falcone <cristianfalcone@gmail.com>
 pkgname=bun
-pkgver=1.3.6
+pkgver="${BUN_VERSION}"
 pkgrel=0
 pkgdesc="Incredibly fast JavaScript runtime, bundler, test runner and package manager"
 url="https://bun.sh"

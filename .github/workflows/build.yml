@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       bun_version:
-        description: 'Bun version to build (e.g., 1.3.6)'
+        description: 'Bun version to build (e.g., 1.3.9)'
         required: true
-        default: '1.3.6'
+        default: '1.3.9'
 
 permissions:
   contents: write
@@ -92,11 +92,13 @@ jobs:
 
               # Build bun-bootstrap
               cd /workspace/aports/testing/bun-bootstrap
-              su builder -c "abuild -r"
+              su builder -c "BUN_VERSION=${{ github.event.inputs.bun_version }} abuild checksum"
+              su builder -c "BUN_VERSION=${{ github.event.inputs.bun_version }} abuild -r"
 
               # Build bun
               cd /workspace/aports/testing/bun
-              su builder -c "abuild -r"
+              su builder -c "BUN_VERSION=${{ github.event.inputs.bun_version }} abuild checksum"
+              su builder -c "BUN_VERSION=${{ github.event.inputs.bun_version }} abuild -r"
 
               # Collect packages to output directory
               mkdir -p /workspace/output
